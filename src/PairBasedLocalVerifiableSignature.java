@@ -124,7 +124,7 @@ public class PairBasedLocalVerifiableSignature {
         return coeffs;
     }
 
-    public static List<Element> CalculateCoeffOmit(int index, List<Element> messages) {
+    public static List<Element> CalculateCoeff2(int index, List<Element> messages) {
         int l = messages.size();
         List<Element> coeffs = new ArrayList<>();
         Element tmp;
@@ -174,7 +174,7 @@ public class PairBasedLocalVerifiableSignature {
 
     public static List<Element> LocalOpen(int index, List<Element> messages, List<Element> vk) {
         int l = messages.size();
-        List<Element> coeffs = CalculateCoeffOmit(index, messages);
+        List<Element> coeffs = CalculateCoeff2(index, messages);
         Element tmp, prod;
         List<Element> aux = new ArrayList<>();
         prod = g;
