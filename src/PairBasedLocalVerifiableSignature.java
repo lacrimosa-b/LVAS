@@ -107,7 +107,7 @@ public class PairBasedLocalVerifiableSignature {
             coeffs.add(elem);
         }
 
-        coeffs.get(0).setToOne();
+        coeffs.getFirst().setToOne();
 
         Element tmp = pairing.getZr().newElement();
 
@@ -124,47 +124,15 @@ public class PairBasedLocalVerifiableSignature {
 
             for (int j = 0; j < currentSize; j++) {
                 Element coeffJ = coeffs.get(j);
-
-                Element newCoeffNext = newCoeffs.get(j + 1);
-                newCoeffNext.add(coeffJ);
+                newCoeffs.get(j + 1).add(coeffJ);
                 tmp.set(mi);
                 tmp.mul(coeffJ);
-                Element newCoeffCurrent = newCoeffs.get(j);
-                newCoeffCurrent.add(tmp);
+                newCoeffs.get(j).add(tmp);
             }
 
             coeffs = newCoeffs;
         }
 
-        return coeffs;
-    }
-
-    public static List<Element> CalculateCoeff2(int index, List<Element> messages) {
-        int l = messages.size();
-        List<Element> coeffs = new ArrayList<>();
-        Element tmp;
-        for (int i = 0; i < l; i++) {
-            coeffs.add(pairing.getZr().newZeroElement());
-        }
-
-        coeffs.getFirst().set(pairing.getZr().newOneElement());
-        tmp = pairing.getZr().newZeroElement();
-
-        for (int i = 0; i < l; i++) {
-            if(index != i) {
-                List<Element> newCoeffs = new ArrayList<>();
-                for (int j = 0; j < l; j++) {
-                    newCoeffs.add(pairing.getZr().newZeroElement());
-                }
-
-                for (int j = 0; j < l - 1; j++) {
-                    newCoeffs.get(j + 1).add(coeffs.get(j));
-                    tmp.set(messages.get(i));
-                    tmp.mul(coeffs.get(j));
-                    newCoeffs.get(j).add(tmp);
-                }
-            }
-        }
         return coeffs;
     }
 
@@ -185,46 +153,85 @@ public class PairBasedLocalVerifiableSignature {
         return v1.equals(v2);
     }
 
+    public static List<Element> CalculateCoeff2(int index, List<Element> messages) {
+        int l = messages.size();
+        List<Element> coeffs = new ArrayList<>(l);
+
+        for (int i = 0; i < l; i++) {
+            coeffs.add(pairing.getZr().newZeroElement());
+        }
+
+        coeffs.getFirst().setToOne();
+
+        Element tmp = pairing.getZr().newElement();
+
+        for (int i = 0; i < l; i++) {
+            if (i != index) {
+                List<Element> newCoeffs = new ArrayList<>(l);
+
+                for (int j = 0; j < l; j++) {
+                    newCoeffs.add(pairing.getZr().newZeroElement());
+                }
+
+                for (int j = 0; j < l - 1; j++) {
+                    newCoeffs.get(j + 1).add(coeffs.get(j));
+                    tmp.set(messages.get(i));
+                    tmp.mul(coeffs.get(j));
+                    newCoeffs.get(j).add(tmp);
+                }
+
+                coeffs = newCoeffs;
+            }
+        }
+        return coeffs;
+    }
+
     public static List<Element> LocalOpen(int index, List<Element> messages, List<Element> vk) {
         int l = messages.size();
+        Element aux1 = pairing.getG1().newZeroElement(), aux2 = pairing.getG1().newZeroElement();
         List<Element> coeffs = CalculateCoeff2(index, messages);
-        Element tmp, prod;
-        List<Element> aux = new ArrayList<>();
-        prod = g;
-        prod.powZn(coeffs.getFirst());
+
+        Element prod = pairing.getG1().newElement();
+        Element tmp = pairing.getG1().newElement();
+
+        Element generator = pairing.getG1().newElement().set(g);
+        prod.set(generator).powZn(coeffs.getFirst());
 
         for (int i = 0; i < l - 1; i++) {
-            tmp = vk.get(i);
-            tmp.powZn(coeffs.get(i + 1));
+            tmp.set(vk.get(i)).powZn(coeffs.get(i + 1));
             prod.mul(tmp);
         }
+        aux1.set(prod);
 
-        aux.add(prod);
         prod.setToOne();
         for (int i = 0; i < l; i++) {
-            tmp = vk.get(i);
-            tmp.powZn(coeffs.get(i));
+            tmp.set(vk.get(i)).powZn(coeffs.get(i));
             prod.mul(tmp);
         }
-        aux.add(prod);
+        aux2.set(prod);
+        List<Element> aux = new ArrayList<>();
+        aux.add(aux1);
+        aux.add(aux2);
         return aux;
     }
 
     public static Boolean LocalAggVerify(Element signature, Element message, List<Element> vk, List<Element> aux) {
-        Element tmp, v1, v2;
-        boolean b1, b2;
-        v1 = pairing.pairing(g, g);
-        v2 = pairing.getGT().newZeroElement();
-        tmp = pairing.getG1().newZeroElement();
-        tmp = aux.getFirst();
-        tmp.powZn(message);
-        tmp.mul(aux.get(1));
-        v2 = pairing.pairing(signature, tmp);
-        b1 = v1.equals(v2);
 
-        v1 = pairing.pairing(vklocal, aux.getFirst());
-        v2 = pairing.pairing(g, aux.get(1));
-        b2 = v2.equals(v1);
+        Element v1 = pairing.getGT().newElement();
+        Element v2 = pairing.getGT().newElement();
+        Element tmp = pairing.getG1().newElement();
+
+        Element generator = pairing.getG1().newElement().set(g);
+        v1.set(pairing.pairing(generator, generator));
+
+        tmp.set(aux.getFirst()).powZn(message).mul(aux.get(1));
+        v2.set(pairing.pairing(signature, tmp));
+        boolean b1 = v1.isEqual(v2);
+        
+        v1.set(pairing.pairing(vklocal, aux.getFirst()));
+        v2.set(pairing.pairing(generator, aux.get(1)));
+        boolean b2 = v1.isEqual(v2);
+
         return b1 && b2;
     }
 
