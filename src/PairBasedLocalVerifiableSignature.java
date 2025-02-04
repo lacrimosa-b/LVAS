@@ -99,28 +99,43 @@ public class PairBasedLocalVerifiableSignature {
 
     public static List<Element> CalculateCoeff(List<Element> messages) {
         int l = messages.size();
-        List<Element> coeffs = new ArrayList<>();
-        Element tmp = pairing.getZr().newZeroElement();
+        List<Element> coeffs = new ArrayList<>(l + 1);
+
         for (int i = 0; i < l + 1; i++) {
-            coeffs.add(pairing.getZr().newZeroElement());
+            Element elem = pairing.getZr().newElement();
+            elem.setToZero();
+            coeffs.add(elem);
         }
-        coeffs.getFirst().set(pairing.getZr().newOneElement());
-        tmp.set(pairing.getZr().newZeroElement());
 
-        for (int i = 0; i < l; i++) {
-            List<Element> newCoeffs = new ArrayList<>();
+        coeffs.get(0).setToOne();
 
-            for (int j = 0; j < coeffs.size() + 1; j++) {
-                newCoeffs.add(pairing.getZr().newZeroElement());
+        Element tmp = pairing.getZr().newElement();
+
+        for (Element mi : messages) {
+            int currentSize = coeffs.size();
+            List<Element> newCoeffs = new ArrayList<>(currentSize + 1);
+
+            for (int i = 0; i < currentSize + 1; i++) {
+                Element elem = pairing.getZr().newElement();
+                elem.setToZero();
+                newCoeffs.add(elem);
             }
 
-            for (int j = 0; j < l + 1; j++) {
-                newCoeffs.get(j + 1).add(coeffs.get(j));
-                tmp.set(messages.get(i));
-                tmp.mul(coeffs.get(j));
-                newCoeffs.get(j).add(tmp);
+
+            for (int j = 0; j < currentSize; j++) {
+                Element coeffJ = coeffs.get(j);
+
+                Element newCoeffNext = newCoeffs.get(j + 1);
+                newCoeffNext.add(coeffJ);
+                tmp.set(mi);
+                tmp.mul(coeffJ);
+                Element newCoeffCurrent = newCoeffs.get(j);
+                newCoeffCurrent.add(tmp);
             }
+
+            coeffs = newCoeffs;
         }
+
         return coeffs;
     }
 
@@ -167,8 +182,6 @@ public class PairBasedLocalVerifiableSignature {
         Element v1 = pairing.getGT().newZeroElement(), v2 = pairing.getGT().newZeroElement();
         v1.set(pairing.pairing(g, g));
         v2.set(pairing.pairing(signature, prod));
-        System.out.println(v1);
-        System.out.println(v2);
         return v1.equals(v2);
     }
 
